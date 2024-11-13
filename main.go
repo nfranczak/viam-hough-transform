@@ -2,16 +2,17 @@
 package main
 
 import (
-	"hough"
-
 	"go.viam.com/rdk/module"
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/services/vision"
+	"main.go/hough"
 )
+
+const moduleName = "Hough Transform Go Module"
 
 func main() {
 	module.ModularMain(
-		hough.ModelName,
+		moduleName,
 		resource.APIModel{API: vision.API, Model: hough.Model},
 	)
 }
