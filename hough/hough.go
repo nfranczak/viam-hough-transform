@@ -4,6 +4,7 @@ package hough
 import (
 	"context"
 	"fmt"
+	"os"
 	"strconv"
 
 	"image"
@@ -115,9 +116,7 @@ func (h *myHoughTransformer) DetectionsFromCamera(
 ) ([]objdet.Detection, error) {
 	images, _, err := h.cam.Images(ctx)
 	if err != nil {
-		h.logger.Info("inside DetectionsFromCamera, failed to get images though")
-		// return nil, err
-		return nil, fmt.Errorf("error1.0")
+		return nil, err
 	}
 
 	var depthImg image.Image
@@ -126,17 +125,16 @@ func (h *myHoughTransformer) DetectionsFromCamera(
 			depthImg = img.Image
 		}
 	}
-	circles, err := vesselCircles(depthImg)
+	circles, err := vesselCircles(depthImg, true)
 	if err != nil {
-		h.logger.Info("vesselCircles returned an error though")
-		return nil, fmt.Errorf("error1.1")
+		return nil, err
 	}
 	var detections []objdet.Detection
 	for i, c := range circles {
-		minX := c.center.X - (c.radius / 2)
-		maxX := c.center.X + (c.radius / 2)
-		minY := c.center.Y - (c.radius / 2)
-		maxY := c.center.Y + (c.radius / 2)
+		minX := c.center.X - (c.radius)
+		maxX := c.center.X + (c.radius)
+		minY := c.center.Y - (c.radius)
+		maxY := c.center.Y + (c.radius)
 		rect := image.Rectangle{
 			Min: image.Point{X: minX, Y: minY},
 			Max: image.Point{X: maxX, Y: maxY},
@@ -144,40 +142,12 @@ func (h *myHoughTransformer) DetectionsFromCamera(
 		name := "circle-" + strconv.Itoa(i)
 		detections = append(detections, objdet.NewDetection(rect, 100, name))
 	}
-	h.logger.Info("we have returned our detections, so things seems to be going fine?")
+
 	return detections, nil
 }
 
 func (h *myHoughTransformer) Detections(ctx context.Context, img image.Image, extra map[string]interface{}) ([]objdet.Detection, error) {
-	images, _, err := h.cam.Images(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	var depthImg image.Image
-	for _, img := range images {
-		if img.SourceName == "depth" {
-			depthImg = img.Image
-		}
-	}
-	circles, err := vesselCircles(depthImg)
-	if err != nil {
-		return nil, err
-	}
-	var detections []objdet.Detection
-	for i, c := range circles {
-		minX := c.center.X - (c.radius / 2)
-		maxX := c.center.X + (c.radius / 2)
-		minY := c.center.Y - (c.radius / 2)
-		maxY := c.center.Y + (c.radius / 2)
-		rect := image.Rectangle{
-			Min: image.Point{X: minX, Y: minY},
-			Max: image.Point{X: maxX, Y: maxY},
-		}
-		name := "circle-" + strconv.Itoa(i)
-		detections = append(detections, objdet.NewDetection(rect, 100, name))
-	}
-	return detections, nil
+	return nil, errUnimplemented
 }
 
 func (h *myHoughTransformer) ClassificationsFromCamera(
@@ -186,24 +156,28 @@ func (h *myHoughTransformer) ClassificationsFromCamera(
 	n int,
 	extra map[string]interface{},
 ) (classification.Classifications, error) {
-	return nil, fmt.Errorf("error1")
+	return nil, errUnimplemented
 }
 
 func (h *myHoughTransformer) Classifications(ctx context.Context, img image.Image,
 	n int, extra map[string]interface{},
 ) (classification.Classifications, error) {
-	return nil, fmt.Errorf("error2")
+	return nil, errUnimplemented
 }
 
 func (h *myHoughTransformer) GetProperties(ctx context.Context, extra map[string]interface{}) (*vision.Properties, error) {
-	return nil, errUnimplemented
+	return &vision.Properties{
+		DetectionSupported:      true,
+		ClassificationSupported: false,
+		ObjectPCDsSupported:     false,
+	}, nil
 }
 func (h *myHoughTransformer) GetObjectPointClouds(
 	ctx context.Context,
 	cameraName string,
 	extra map[string]interface{},
 ) ([]*vis.Object, error) {
-	return nil, fmt.Errorf("error3")
+	return nil, errUnimplemented
 }
 
 func (h *myHoughTransformer) CaptureAllFromCamera(
@@ -212,33 +186,58 @@ func (h *myHoughTransformer) CaptureAllFromCamera(
 	opt viscapture.CaptureOptions,
 	extra map[string]interface{},
 ) (viscapture.VisCapture, error) {
-	h.logger.Info("HELLO THERE WE ARE INSIDE CAPTURE ALL FROM CAMERA")
-	h.logger.Info("sanity hello")
-	dets, err := h.DetectionsFromCamera(ctx, cameraName, extra)
-	if err != nil {
-		h.logger.Info("returning error here 1")
-		return viscapture.VisCapture{}, fmt.Errorf("error4.00000")
-	}
 	images, _, err := h.cam.Images(ctx)
 	if err != nil {
-		h.logger.Info("returning error here 2")
-		// return nil, err
-		return viscapture.VisCapture{}, fmt.Errorf("error1.0.1111")
+		return viscapture.VisCapture{}, err
 	}
-	var colorImg image.Image
+
+	var depthImg image.Image
 	for _, img := range images {
 		if img.SourceName == "color" {
-			colorImg = img.Image
+			depthImg = img.Image
 		}
 	}
-	for _, d := range dets {
-		h.logger.Infof("THIS IS THE DETECTION: %v", d)
+	circles, err := vesselCircles(depthImg, false)
+	if err != nil {
+		return viscapture.VisCapture{}, err
 	}
-	h.logger.Info("we got our image, will return now")
+	var detections []objdet.Detection
+	for i, c := range circles {
+		minX := c.center.X - (c.radius)
+		maxX := c.center.X + (c.radius)
+		minY := c.center.Y - (c.radius)
+		maxY := c.center.Y + (c.radius)
+		rect := image.Rectangle{
+			Min: image.Point{X: minX, Y: minY},
+			Max: image.Point{X: maxX, Y: maxY},
+		}
+		name := "circle-" + strconv.Itoa(i)
+		detections = append(detections, objdet.NewDetection(rect, 100, name))
+	}
+
+	colorImg, err := openImage()
+	if err != nil {
+		return viscapture.VisCapture{}, err
+	}
+	// dets, err := h.DetectionsFromCamera(ctx, cameraName, extra)
+	// if err != nil {
+	// 	return viscapture.VisCapture{}, err
+	// }
+	// images, _, err = h.cam.Images(ctx)
+	// if err != nil {
+	// 	return viscapture.VisCapture{}, err
+	// }
+
+	// var colorImg image.Image
+	// for _, img := range images {
+	// 	if img.SourceName == "color" {
+	// 		colorImg = img.Image
+	// 	}
+	// }
+
 	return viscapture.VisCapture{
-		Image:           colorImg,
-		Detections:      dets,
-		Classifications: classification.Classifications{},
+		Image:      colorImg,
+		Detections: detections,
 	}, nil
 }
 
@@ -249,4 +248,21 @@ func (h *myHoughTransformer) Close(ctx context.Context) error {
 // DoCommand will return the slowest, fastest, and average time of the tracking module
 func (h *myHoughTransformer) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
 	return nil, errors.New("hello there")
+}
+
+func openImage() (image.Image, error) {
+	// Open the JPEG file
+	file, err := os.Open("output.jpg")
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Decode the image
+	img, _, err := image.Decode(file)
+	if err != nil {
+		return nil, err
+	}
+
+	return img, nil
 }

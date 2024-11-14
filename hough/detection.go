@@ -29,7 +29,7 @@ type Circle struct {
 	radius int
 }
 
-func vesselCircles(img image.Image) ([]Circle, error) {
+func vesselCircles(img image.Image, addOffset bool) ([]Circle, error) {
 	croppedImg := cropImage(img)
 	_ = croppedImg
 
@@ -97,8 +97,12 @@ func vesselCircles(img image.Image) ([]Circle, error) {
 			continue
 		}
 		gocv.Circle(&mat, center, radius, color.RGBA{255, 0, 0, 0}, 2)
-		// need to add the offset back so circle is returned with respect to original image
-		goodCircles = append(goodCircles, Circle{center.Add(crop.Min), radius})
+		if addOffset {
+			// need to add the offset back so circle is returned with respect to original image
+			goodCircles = append(goodCircles, Circle{center.Add(crop.Min), radius})
+		} else {
+			goodCircles = append(goodCircles, Circle{center, radius})
+		}
 	}
 
 	// Save the output image with circles
