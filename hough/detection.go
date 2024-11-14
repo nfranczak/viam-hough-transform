@@ -74,7 +74,6 @@ func vesselCircles(img image.Image, addOffset bool) ([]Circle, error) {
 
 	// READ MORE ABOUT THIS HERE:
 	// https://docs.opencv.org/4.x/dd/d1a/group__imgproc__feature.html#ga47849c3be0d0406ad3ca45db65a25d2d
-	// THESE ARE PARAMETERS FOR RED SOLO CUPS
 	gocv.HoughCirclesWithParams(
 		gray,                   // src
 		&circles,               // circles
