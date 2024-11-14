@@ -20,19 +20,20 @@ import (
 	"go.viam.com/rdk/vision/viscapture"
 )
 
-// ModelName is the name of the model
 const (
-	ModelName = "hough-transform"
+	ModelName        = "hough-transform"
+	defaultDP        = 1
+	defaultMinDist   = 8
+	defaultParam1    = 60
+	defaultParam2    = 25
+	defaultMinRadius = 35
+	defaultMaxRadius = 50
 )
 
 var (
-	// Here is where we define your new model's colon-delimited-triplet (viam:vision:object-tracker)
-	Model                  = resource.NewModel("viam", "vision", ModelName)
-	errUnimplemented       = errors.New("unimplemented")
-	DefaultMinConfidence   = 0.2
-	DefaultMaxFrequency    = 10.0
-	DefaultTriggerCoolDown = 5.0
-	DefaultBufferSize      = 30
+	// Here is where we define your new model's colon-delimited-triplet (viam:vision:hough-transform)
+	Model            = resource.NewModel("viam", "vision", ModelName)
+	errUnimplemented = errors.New("unimplemented")
 )
 
 func init() {
@@ -65,7 +66,7 @@ func newHoughTransformer(ctx context.Context, deps resource.Dependencies, conf r
 
 // Config contains names for necessary resources (camera and vision service)
 type Config struct {
-	CameraName string  `json:"camera_name,omitempty"`
+	CameraName string  `json:"camera_name"`
 	Dp         float64 `json:"dp,omitempty"`
 	MinDist    float64 `json:"min_dist,omitempty"`
 	Param1     float64 `json:"param1,omitempty"`
@@ -75,14 +76,11 @@ type Config struct {
 }
 
 // Validate validates the config and returns implicit dependencies,
-// this Validate checks if the camera and detector(vision svc) exist for the module's vision model.
 func (cfg *Config) Validate(path string) ([]string, error) {
-	// this makes them required for the model to successfully build
 	if cfg.CameraName == "" {
 		return nil, fmt.Errorf(`expected "camera_name" attribute for object tracker %q`, path)
 	}
 
-	// Return the resource names so that newTracker can access them as dependencies.
 	return []string{cfg.CameraName}, nil
 }
 
@@ -114,40 +112,31 @@ func (h *myHoughTransformer) DetectionsFromCamera(
 	cameraName string,
 	extra map[string]interface{},
 ) ([]objdet.Detection, error) {
-	images, _, err := h.cam.Images(ctx)
+	colorImg, err := h.getImage(ctx)
 	if err != nil {
 		return nil, err
 	}
 
-	var depthImg image.Image
-	for _, img := range images {
-		if img.SourceName == "color" {
-			depthImg = img.Image
-		}
-	}
-	circles, err := vesselCircles(depthImg, true)
+	detections, err := h.Detections(ctx, colorImg, map[string]interface{}{"addOffset": true})
 	if err != nil {
 		return nil, err
-	}
-	var detections []objdet.Detection
-	for i, c := range circles {
-		minX := c.center.X - (c.radius)
-		maxX := c.center.X + (c.radius)
-		minY := c.center.Y - (c.radius)
-		maxY := c.center.Y + (c.radius)
-		rect := image.Rectangle{
-			Min: image.Point{X: minX, Y: minY},
-			Max: image.Point{X: maxX, Y: maxY},
-		}
-		name := "circle-" + strconv.Itoa(i)
-		detections = append(detections, objdet.NewDetection(rect, 100, name))
 	}
 
 	return detections, nil
 }
 
 func (h *myHoughTransformer) Detections(ctx context.Context, img image.Image, extra map[string]interface{}) ([]objdet.Detection, error) {
-	return nil, errUnimplemented
+	addOffset, ok := extra["addOffset"].(bool)
+	if !ok {
+		return nil, errors.New("we do not know if we should add an offset to the detections, please specify")
+	}
+
+	circles, err := vesselCircles(img, addOffset)
+	if err != nil {
+		return nil, err
+	}
+
+	return formatDetections(circles), nil
 }
 
 func (h *myHoughTransformer) ClassificationsFromCamera(
@@ -186,21 +175,58 @@ func (h *myHoughTransformer) CaptureAllFromCamera(
 	opt viscapture.CaptureOptions,
 	extra map[string]interface{},
 ) (viscapture.VisCapture, error) {
-	images, _, err := h.cam.Images(ctx)
+	colorImg, err := h.getImage(ctx)
 	if err != nil {
 		return viscapture.VisCapture{}, err
 	}
 
-	var depthImg image.Image
-	for _, img := range images {
-		if img.SourceName == "color" {
-			depthImg = img.Image
-		}
-	}
-	circles, err := vesselCircles(depthImg, false)
+	detections, err := h.Detections(ctx, colorImg, map[string]interface{}{"addOffset": false})
 	if err != nil {
 		return viscapture.VisCapture{}, err
 	}
+
+	croppedColorImg, err := openImage()
+	if err != nil {
+		return viscapture.VisCapture{}, err
+	}
+
+	return viscapture.VisCapture{
+		Image:      croppedColorImg,
+		Detections: detections,
+	}, nil
+}
+
+func (h *myHoughTransformer) Close(ctx context.Context) error {
+	return nil
+}
+
+func (h *myHoughTransformer) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
+	if _, ok := cmd["determineAmountOfCups"]; ok {
+		// code here
+	}
+	if numOfCupsToDetect, ok := cmd["getTheDetections"].(int); ok {
+		_ = numOfCupsToDetect
+		// code here
+	}
+	return nil, errors.New("called DoCommand but nothing was executed")
+}
+
+func (h *myHoughTransformer) getImage(ctx context.Context) (image.Image, error) {
+	images, _, err := h.cam.Images(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	var colorImg image.Image
+	for _, img := range images {
+		if img.SourceName == "color" {
+			colorImg = img.Image
+		}
+	}
+	return colorImg, nil
+}
+
+func formatDetections(circles []Circle) []objdet.Detection {
 	var detections []objdet.Detection
 	for i, c := range circles {
 		minX := c.center.X - (c.radius)
@@ -212,42 +238,9 @@ func (h *myHoughTransformer) CaptureAllFromCamera(
 			Max: image.Point{X: maxX, Y: maxY},
 		}
 		name := "circle-" + strconv.Itoa(i)
-		detections = append(detections, objdet.NewDetection(rect, 100, name))
+		detections = append(detections, objdet.NewDetection(rect, 1, name))
 	}
-
-	colorImg, err := openImage()
-	if err != nil {
-		return viscapture.VisCapture{}, err
-	}
-	// dets, err := h.DetectionsFromCamera(ctx, cameraName, extra)
-	// if err != nil {
-	// 	return viscapture.VisCapture{}, err
-	// }
-	// images, _, err = h.cam.Images(ctx)
-	// if err != nil {
-	// 	return viscapture.VisCapture{}, err
-	// }
-
-	// var colorImg image.Image
-	// for _, img := range images {
-	// 	if img.SourceName == "color" {
-	// 		colorImg = img.Image
-	// 	}
-	// }
-
-	return viscapture.VisCapture{
-		Image:      colorImg,
-		Detections: detections,
-	}, nil
-}
-
-func (h *myHoughTransformer) Close(ctx context.Context) error {
-	return nil
-}
-
-// DoCommand will return the slowest, fastest, and average time of the tracking module
-func (h *myHoughTransformer) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
-	return nil, errors.New("hello there")
+	return detections
 }
 
 func openImage() (image.Image, error) {
