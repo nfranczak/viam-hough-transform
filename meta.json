@@ -11,5 +11,5 @@
     }
   ],
   "applications": null,
-  "entrypoint": "bin/hough-transform"
+  "entrypoint": "bin/viam-hough-transform"
 }
