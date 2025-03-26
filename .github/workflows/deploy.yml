@@ -1,0 +1,44 @@
+# see https://github.com/viamrobotics/build-action for help
+on:
+  push:
+    tags:
+      - '*'
+
+jobs:
+  publish:
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+            target_os: linux
+            target_arch: amd64
+          - platform: linux/arm64
+            runner: buildjet-32vcpu-ubuntu-2204-arm	
+            target_os: linux
+            target_arch: arm64
+
+    runs-on: ${{ matrix.runner }}
+    container: ghcr.io/hybridgroup/opencv:4.11.0
+    
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.23'
+
+    - name: Compile Module
+      run: VIAM_TARGET_OS=${{matrix.target_os}} make module.tar.gz
+
+    - name: Upload viamrtsp module to registry
+      uses: viamrobotics/upload-module@v1
+      with:
+        meta-path: meta.json
+        module-path: module.tar.gz
+        platform: ${{ matrix.platform }}
+        version: ${{ github.ref_name }}
+        key-id: ${{ secrets.VIAM_KEY_ID }}
+        key-value: ${{ secrets.VIAM_KEY_VALUE }}
+
