@@ -8,9 +8,9 @@ ifeq ($(VIAM_TARGET_OS), windows)
 	MODULE_BINARY = bin/viam-hough-transform.exe
 endif
 
-#ifeq ($(VIAM_TARGET_OS), linux)
-#	GO_BUILD_ENV += CGO_LDFLAGS='-ltbb'
-#endif
+ifeq ($(VIAM_TARGET_OS), linux)
+	GO_BUILD_ENV += CGO_LDFLAGS='-ltbb'
+endif
 
 $(MODULE_BINARY): Makefile go.mod cmd/module/*.go hough/*.go
 	$(GO_BUILD_ENV) go build $(GO_BUILD_FLAGS) -o $(MODULE_BINARY) cmd/module/main.go
