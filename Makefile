@@ -9,7 +9,7 @@ ifeq ($(VIAM_TARGET_OS), windows)
 endif
 
 ifeq ($(VIAM_TARGET_OS), linux)
-	GO_BUILD_ENV += CGO_LDFLAGS='-ltbb -static'
+	GO_BUILD_ENV += CGO_LDFLAGS='-ltbb'
 endif
 
 $(MODULE_BINARY): Makefile go.mod cmd/module/*.go hough/*.go
