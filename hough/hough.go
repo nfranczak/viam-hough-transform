@@ -32,7 +32,7 @@ const (
 
 var (
 	// Here is where we define your new model's colon-delimited-triplet (viam:vision:hough-transform)
-	Model            = resource.NewModel("nfranczak", "circle-detector", ModelName)
+	Model            = resource.NewModel("viam", "circle-detector", ModelName)
 	errUnimplemented = errors.New("unimplemented")
 )
 

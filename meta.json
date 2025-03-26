@@ -7,7 +7,7 @@
     "models": [
         {
             "api": "rdk:service:vision",
-            "model": "nfranczak:circle-detector:hough-transform"
+            "model": "viam:circle-detector:hough-transform"
         }
     ],
     "entrypoint": "bin/viam-hough-transform",
