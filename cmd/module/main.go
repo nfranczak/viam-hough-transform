@@ -6,7 +6,7 @@ import (
 	"go.viam.com/rdk/resource"
 	"go.viam.com/rdk/services/vision"
 
-	"github.com/nfranczak/viam-hough-transform/hough"
+	"github.com/viam-modules/hough-transform/hough"
 )
 
 func main() {

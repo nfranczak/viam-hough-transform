@@ -1,4 +1,4 @@
-module github.com/nfranczak/viam-hough-transform
+module github.com/viam-modules/hough-transform
 
 go 1.23
 
