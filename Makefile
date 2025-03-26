@@ -10,6 +10,7 @@ endif
 
 ifeq ($(VIAM_TARGET_OS), linux)
 	GO_BUILD_ENV += CGO_LDFLAGS='-ltbb'
+	GO_BUILD_FLAGS := -tags opencvstatic
 endif
 
 $(MODULE_BINARY): Makefile go.mod cmd/module/*.go hough/*.go
