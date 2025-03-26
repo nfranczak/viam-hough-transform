@@ -9,11 +9,8 @@ import (
 	"github.com/nfranczak/viam-hough-transform/hough"
 )
 
-const moduleName = "Hough Transform Go Module"
-
 func main() {
 	module.ModularMain(
-		moduleName,
 		resource.APIModel{API: vision.API, Model: hough.Model},
 	)
 }
