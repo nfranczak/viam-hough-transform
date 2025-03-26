@@ -1,8 +1,8 @@
 {
     "$schema": "https://dl.viam.dev/module.schema.json",
-    "module_id": "nfranczak:circle-detector",
+    "module_id": "viam:circle-detector",
     "visibility": "public",
-    "url": "https://github.com/nfranczak/viam-hough-transform",
+    "url": "https://github.com/viam-modules/hough-transform",
     "description": "module for detecting circles",
     "models": [
         {
