@@ -3,7 +3,6 @@ package hough
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"strconv"
 
@@ -31,7 +30,7 @@ var (
 )
 
 func init() {
-	resource.RegisterService(vision.API, Model, resource.Registration[vision.Service, *Config]{
+	resource.RegisterService(vision.API, Model, resource.Registration[vision.Service, *HoughConfig]{
 		Constructor: newHoughTransformer,
 	})
 }
@@ -42,12 +41,12 @@ type myHoughTransformer struct {
 
 	logger logging.Logger
 	cam    camera.Camera
-	conf   *Config
+	conf   *HoughConfig
 }
 
 func newHoughTransformer(ctx context.Context, deps resource.Dependencies, conf resource.Config, logger logging.Logger) (vision.Service, error) {
 
-	newConf, err := resource.NativeConfig[*Config](conf)
+	newConf, err := resource.NativeConfig[*HoughConfig](conf)
 	if err != nil {
 		return nil, errors.Errorf("Could not assert proper config for %s", ModelName)
 	}
@@ -63,45 +62,6 @@ func newHoughTransformer(ctx context.Context, deps resource.Dependencies, conf r
 	}
 
 	return h, nil
-}
-
-// Config contains names for necessary resources (camera and vision service)
-type Config struct {
-	CameraName string `json:"camera_name"`
-	houghConfig
-}
-
-// Validate validates the config and returns implicit dependencies,
-func (cfg *Config) Validate(path string) ([]string, error) {
-	if cfg.CameraName == "" {
-		return nil, fmt.Errorf(`expected "camera_name" attribute for object tracker %q`, path)
-	}
-
-	if cfg.Dp <= 0 {
-		return nil, fmt.Errorf("dp needs to be set (def 1)")
-	}
-
-	if cfg.MinDist <= 0 {
-		return nil, fmt.Errorf("min_dist needs to be set (def 8)")
-	}
-
-	if cfg.Param1 <= 0 {
-		return nil, fmt.Errorf("param1 needs to be set (def 60)")
-	}
-
-	if cfg.Param2 <= 0 {
-		return nil, fmt.Errorf("param2 needs to be set (def 25)")
-	}
-
-	if cfg.MinRadius <= 0 {
-		return nil, fmt.Errorf("min_radius needs to be set (def 35)")
-	}
-
-	if cfg.MaxRadius <= 0 {
-		return nil, fmt.Errorf("max_radius needs to be set (def 50)")
-	}
-
-	return []string{cfg.CameraName}, nil
 }
 
 func (h *myHoughTransformer) DetectionsFromCamera(
@@ -128,7 +88,7 @@ func (h *myHoughTransformer) Detections(ctx context.Context, img image.Image, ex
 		return nil, errors.New("we do not know if we should add an offset to the detections, please specify")
 	}
 
-	circles, err := vesselCircles(img, &h.conf.houghConfig, addOffset, false, false)
+	circles, err := vesselCircles(img, h.conf, addOffset, false, false)
 	if err != nil {
 		return nil, err
 	}
