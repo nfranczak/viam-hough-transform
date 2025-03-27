@@ -21,13 +21,7 @@ import (
 )
 
 const (
-	ModelName        = "hough-transform"
-	defaultDP        = 1
-	defaultMinDist   = 8
-	defaultParam1    = 60
-	defaultParam2    = 25
-	defaultMinRadius = 35
-	defaultMaxRadius = 50
+	ModelName = "hough-transform"
 )
 
 var (
@@ -44,35 +38,37 @@ func init() {
 
 type myHoughTransformer struct {
 	resource.Named
-	logger    logging.Logger
-	cam       camera.Camera
-	dp        float64
-	minDist   float64
-	param1    float64
-	param2    float64
-	minRadius int
-	maxRadius int
+	resource.AlwaysRebuild
+
+	logger logging.Logger
+	cam    camera.Camera
+	conf   *Config
 }
 
 func newHoughTransformer(ctx context.Context, deps resource.Dependencies, conf resource.Config, logger logging.Logger) (vision.Service, error) {
+
+	newConf, err := resource.NativeConfig[*Config](conf)
+	if err != nil {
+		return nil, errors.Errorf("Could not assert proper config for %s", ModelName)
+	}
+
 	h := &myHoughTransformer{
 		logger: logger,
+		conf:   newConf,
 	}
-	if err := h.Reconfigure(ctx, deps, conf); err != nil {
+
+	h.cam, err = camera.FromDependencies(deps, newConf.CameraName)
+	if err != nil {
 		return nil, err
 	}
+
 	return h, nil
 }
 
 // Config contains names for necessary resources (camera and vision service)
 type Config struct {
-	CameraName string  `json:"camera_name"`
-	Dp         float64 `json:"dp,omitempty"`
-	MinDist    float64 `json:"min_dist,omitempty"`
-	Param1     float64 `json:"param1,omitempty"`
-	Param2     float64 `json:"param2,omitempty"`
-	MinRadius  int     `json:"min_radius,omitempty"`
-	MaxRadius  int     `json:"max_radius,omitempty"`
+	CameraName string `json:"camera_name"`
+	houghConfig
 }
 
 // Validate validates the config and returns implicit dependencies,
@@ -81,30 +77,31 @@ func (cfg *Config) Validate(path string) ([]string, error) {
 		return nil, fmt.Errorf(`expected "camera_name" attribute for object tracker %q`, path)
 	}
 
+	if cfg.Dp <= 0 {
+		return nil, fmt.Errorf("dp needs to be set (def 1)")
+	}
+
+	if cfg.MinDist <= 0 {
+		return nil, fmt.Errorf("min_dist needs to be set (def 8)")
+	}
+
+	if cfg.Param1 <= 0 {
+		return nil, fmt.Errorf("param1 needs to be set (def 60)")
+	}
+
+	if cfg.Param2 <= 0 {
+		return nil, fmt.Errorf("param2 needs to be set (def 25)")
+	}
+
+	if cfg.MinRadius <= 0 {
+		return nil, fmt.Errorf("min_radius needs to be set (def 35)")
+	}
+
+	if cfg.MaxRadius <= 0 {
+		return nil, fmt.Errorf("max_radius needs to be set (def 50)")
+	}
+
 	return []string{cfg.CameraName}, nil
-}
-
-// Reconfigure reconfigures with new settings.
-func (h *myHoughTransformer) Reconfigure(ctx context.Context, deps resource.Dependencies, conf resource.Config) error {
-	houghConfig, err := resource.NativeConfig[*Config](conf)
-	if err != nil {
-		return errors.Errorf("Could not assert proper config for %s", ModelName)
-	}
-
-	h.dp = houghConfig.Dp
-	h.minDist = houghConfig.MinDist
-	h.param1 = houghConfig.Param1
-	h.param2 = houghConfig.Param2
-	h.minRadius = houghConfig.MinRadius
-	h.maxRadius = houghConfig.MaxRadius
-
-	cam, err := camera.FromDependencies(deps, houghConfig.CameraName)
-	if err != nil {
-		return err
-	}
-	h.cam = cam
-
-	return nil
 }
 
 func (h *myHoughTransformer) DetectionsFromCamera(
@@ -131,7 +128,7 @@ func (h *myHoughTransformer) Detections(ctx context.Context, img image.Image, ex
 		return nil, errors.New("we do not know if we should add an offset to the detections, please specify")
 	}
 
-	circles, err := vesselCircles(img, addOffset)
+	circles, err := vesselCircles(img, &h.conf.houghConfig, addOffset, false, false)
 	if err != nil {
 		return nil, err
 	}
