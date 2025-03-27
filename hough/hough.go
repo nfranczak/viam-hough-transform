@@ -3,6 +3,8 @@ package hough
 
 import (
 	"context"
+	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 
@@ -88,7 +90,7 @@ func (h *myHoughTransformer) Detections(ctx context.Context, img image.Image, ex
 		return nil, errors.New("we do not know if we should add an offset to the detections, please specify")
 	}
 
-	circles, err := vesselCircles(img, h.conf, addOffset, false, false)
+	circles, err := vesselCircles(img, h.conf, addOffset, false, "")
 	if err != nil {
 		return nil, err
 	}
@@ -138,17 +140,21 @@ func (h *myHoughTransformer) CaptureAllFromCamera(
 		return viscapture.VisCapture{}, err
 	}
 
-	circles, err := vesselCircles(colorImg, h.conf, false, false, true)
+	output := fmt.Sprintf("output-%d.jpg", rand.Int()%1000)
+
+	circles, err := vesselCircles(colorImg, h.conf, false, false, output)
 	if err != nil {
 		return viscapture.VisCapture{}, err
 	}
 
 	detections := formatDetections(circles)
 
-	croppedColorImg, err := openImage()
+	croppedColorImg, err := openImage(output)
 	if err != nil {
 		return viscapture.VisCapture{}, err
 	}
+
+	os.Remove(output)
 
 	return viscapture.VisCapture{
 		Image:      croppedColorImg,
@@ -196,7 +202,7 @@ func formatDetections(circles []Circle) []objdet.Detection {
 	return detections
 }
 
-func openImage() (image.Image, error) {
+func openImage(fn string) (image.Image, error) {
 	file, err := os.Open("output.jpg")
 	if err != nil {
 		return nil, err
@@ -204,9 +210,5 @@ func openImage() (image.Image, error) {
 	defer file.Close()
 
 	img, _, err := image.Decode(file)
-	if err != nil {
-		return nil, err
-	}
-
-	return img, nil
+	return img, err
 }

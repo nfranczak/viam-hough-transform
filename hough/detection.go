@@ -79,7 +79,7 @@ func (hc *HoughConfig) setDefaults() {
 	hc.MaxRadius = 50
 }
 
-func vesselCircles(img image.Image, hc *HoughConfig, addOffset, outputBlur, outputResults bool) ([]Circle, error) {
+func vesselCircles(img image.Image, hc *HoughConfig, addOffset, outputBlur bool, outputResults string) ([]Circle, error) {
 	croppedImg := cropImage(img, hc.Crop)
 	mat := imageToMat(croppedImg)
 	defer mat.Close()
@@ -122,7 +122,7 @@ func vesselCircles(img image.Image, hc *HoughConfig, addOffset, outputBlur, outp
 		if radius < circleRThreshold {
 			continue
 		}
-		if outputResults {
+		if outputResults != "" {
 			gocv.Circle(&mat, center, radius, color.RGBA{255, 0, 0, 0}, 2)
 		}
 
@@ -134,9 +134,8 @@ func vesselCircles(img image.Image, hc *HoughConfig, addOffset, outputBlur, outp
 		goodCircles = append(goodCircles, Circle{center, radius})
 	}
 
-	if outputResults {
-		output := "output.jpg"
-		if ok := gocv.IMWrite(output, mat); !ok {
+	if outputResults != "" {
+		if ok := gocv.IMWrite(outputResults, mat); !ok {
 			return nil, errors.New("failed to save the output image")
 		}
 	}
