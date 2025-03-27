@@ -132,15 +132,18 @@ func (h *myHoughTransformer) CaptureAllFromCamera(
 	opt viscapture.CaptureOptions,
 	extra map[string]interface{},
 ) (viscapture.VisCapture, error) {
+
 	colorImg, err := h.getImage(ctx)
 	if err != nil {
 		return viscapture.VisCapture{}, err
 	}
 
-	detections, err := h.Detections(ctx, colorImg, map[string]interface{}{"addOffset": false})
+	circles, err := vesselCircles(colorImg, h.conf, false, false, true)
 	if err != nil {
 		return viscapture.VisCapture{}, err
 	}
+
+	detections := formatDetections(circles)
 
 	croppedColorImg, err := openImage()
 	if err != nil {
@@ -158,13 +161,6 @@ func (h *myHoughTransformer) Close(ctx context.Context) error {
 }
 
 func (h *myHoughTransformer) DoCommand(ctx context.Context, cmd map[string]interface{}) (map[string]interface{}, error) {
-	if _, ok := cmd["determineAmountOfCups"]; ok {
-		// code here
-	}
-	if numOfCupsToDetect, ok := cmd["getTheDetections"].(int); ok {
-		_ = numOfCupsToDetect
-		// code here
-	}
 	return nil, errors.New("called DoCommand but nothing was executed")
 }
 
@@ -201,14 +197,12 @@ func formatDetections(circles []Circle) []objdet.Detection {
 }
 
 func openImage() (image.Image, error) {
-	// Open the JPEG file
 	file, err := os.Open("output.jpg")
 	if err != nil {
 		return nil, err
 	}
 	defer file.Close()
 
-	// Decode the image
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return nil, err
