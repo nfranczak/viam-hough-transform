@@ -203,7 +203,7 @@ func formatDetections(circles []Circle) []objdet.Detection {
 }
 
 func openImage(fn string) (image.Image, error) {
-	file, err := os.Open("output.jpg")
+	file, err := os.Open(fn)
 	if err != nil {
 		return nil, err
 	}
