@@ -14,6 +14,8 @@ import (
 	"go.viam.com/rdk/components/camera"
 	"go.viam.com/rdk/logging"
 	"go.viam.com/rdk/resource"
+	"go.viam.com/rdk/rimage"
+	"go.viam.com/rdk/rimage/transform"
 	"go.viam.com/rdk/services/vision"
 	vis "go.viam.com/rdk/vision"
 	"go.viam.com/rdk/vision/classification"
@@ -75,8 +77,27 @@ func (h *myHoughTransformer) DetectionsFromCamera(
 	if err != nil {
 		return nil, err
 	}
+	camProps, err := h.cam.Properties(ctx)
+	if err != nil {
+		return nil, err
+	}
+	//
+	bc, err := transform.NewBrownConrady(camProps.DistortionParams.Parameters())
+	if err != nil {
+		return nil, err
+	}
 
-	detections, err := h.Detections(ctx, colorImg, map[string]interface{}{"addOffset": true})
+	pinholeModel := &transform.PinholeCameraModel{
+		PinholeCameraIntrinsics: camProps.IntrinsicParams,
+		Distortion:              bc,
+	}
+
+	asRimg, err := pinholeModel.UndistortImage(rimage.ConvertImage(colorImg))
+	if err != nil {
+		return nil, err
+	}
+
+	detections, err := h.Detections(ctx, asRimg, map[string]interface{}{"addOffset": true})
 	if err != nil {
 		return nil, err
 	}
