@@ -79,7 +79,7 @@ func (hc *HoughConfig) setDefaults() {
 	hc.MaxRadius = 50
 }
 
-func vesselCircles(img image.Image, hc *HoughConfig, addOffset, outputBlur bool, outputResults string) ([]Circle, error) {
+func vesselCircles(img image.Image, hc *HoughConfig, outputBlur bool, outputResults string) ([]Circle, error) {
 	croppedImg := cropImage(img, hc.Crop)
 	mat := imageToMat(croppedImg)
 	defer mat.Close()
@@ -126,7 +126,7 @@ func vesselCircles(img image.Image, hc *HoughConfig, addOffset, outputBlur bool,
 			gocv.Circle(&mat, center, radius, color.RGBA{255, 0, 0, 0}, 2)
 		}
 
-		if addOffset && hc.Crop != nil {
+		if hc.Crop != nil {
 			// need to add the offset back so circle is returned with respect to original image
 			center = center.Add(hc.Crop.Min)
 		}

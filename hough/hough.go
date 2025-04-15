@@ -77,27 +77,25 @@ func (h *myHoughTransformer) DetectionsFromCamera(
 	if err != nil {
 		return nil, err
 	}
+
 	camProps, err := h.cam.Properties(ctx)
 	if err != nil {
 		return nil, err
 	}
-	//
 	bc, err := transform.NewBrownConrady(camProps.DistortionParams.Parameters())
 	if err != nil {
 		return nil, err
 	}
 
-	pinholeModel := &transform.PinholeCameraModel{
+	undistortedImg, err := (&transform.PinholeCameraModel{
 		PinholeCameraIntrinsics: camProps.IntrinsicParams,
 		Distortion:              bc,
-	}
-
-	asRimg, err := pinholeModel.UndistortImage(rimage.ConvertImage(colorImg))
+	}).UndistortImage(rimage.ConvertImage(colorImg))
 	if err != nil {
 		return nil, err
 	}
 
-	detections, err := h.Detections(ctx, asRimg, map[string]interface{}{"addOffset": true})
+	detections, err := h.Detections(ctx, undistortedImg, map[string]interface{}{"addOffset": true})
 	if err != nil {
 		return nil, err
 	}
@@ -106,12 +104,7 @@ func (h *myHoughTransformer) DetectionsFromCamera(
 }
 
 func (h *myHoughTransformer) Detections(ctx context.Context, img image.Image, extra map[string]interface{}) ([]objdet.Detection, error) {
-	addOffset, ok := extra["addOffset"].(bool)
-	if !ok {
-		return nil, errors.New("we do not know if we should add an offset to the detections, please specify")
-	}
-
-	circles, err := vesselCircles(img, h.conf, addOffset, false, "")
+	circles, err := vesselCircles(img, h.conf, false, "")
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +156,7 @@ func (h *myHoughTransformer) CaptureAllFromCamera(
 
 	output := fmt.Sprintf("output-%d.jpg", rand.Int()%1000)
 
-	circles, err := vesselCircles(colorImg, h.conf, false, false, output)
+	circles, err := vesselCircles(colorImg, h.conf, false, output)
 	if err != nil {
 		return viscapture.VisCapture{}, err
 	}
