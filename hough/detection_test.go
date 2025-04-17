@@ -18,7 +18,7 @@ func TestHough1(t *testing.T) {
 	c.setDefaults()
 	c.MinDist = float64(c.MinRadius)
 
-	circles, err := vesselCircles(img, c, false, false, "a1-output.jpg")
+	circles, err := vesselCircles(img, c, false, "a1-output.jpg")
 	test.That(t, err, test.ShouldBeNil)
 	test.That(t, len(circles), test.ShouldEqual, 3)
 }
