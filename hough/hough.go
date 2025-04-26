@@ -38,9 +38,9 @@ func init() {
 }
 
 type myHoughTransformer struct {
-	resource.Named
 	resource.AlwaysRebuild
 
+	name   resource.Name
 	logger logging.Logger
 	cam    camera.Camera
 	conf   *HoughConfig
@@ -54,6 +54,7 @@ func newHoughTransformer(ctx context.Context, deps resource.Dependencies, conf r
 	}
 
 	h := &myHoughTransformer{
+		name:   conf.ResourceName(),
 		logger: logger,
 		conf:   newConf,
 	}
@@ -64,6 +65,10 @@ func newHoughTransformer(ctx context.Context, deps resource.Dependencies, conf r
 	}
 
 	return h, nil
+}
+
+func (h *myHoughTransformer) Name() resource.Name {
+	return h.name
 }
 
 func (h *myHoughTransformer) DetectionsFromCamera(
