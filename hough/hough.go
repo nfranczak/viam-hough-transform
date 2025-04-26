@@ -197,7 +197,7 @@ func formatDetections(circles []Circle) []objdet.Detection {
 			Max: image.Point{X: maxX, Y: maxY},
 		}
 		name := "circle-" + strconv.Itoa(i)
-		detections = append(detections, objdet.NewDetection(rect, 1, name))
+		detections = append(detections, objdet.NewDetectionWithoutImgBounds(rect, 1, name))
 	}
 	return detections
 }
